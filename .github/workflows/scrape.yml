@@ -2,7 +2,7 @@ Name: IPTV Scraper - Automatic Channel Update
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 permissions:
