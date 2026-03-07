@@ -2,8 +2,8 @@ name: IPTV Scraper - Automatic Channel Update
 
 on:
   schedule:
-    - cron: '0 * * * *' # প্রতি ঘণ্টায় রান হবে
-  workflow_dispatch: # ম্যানুয়ালি রান করার অপশন
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,28 +14,28 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: 📥 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: 🔓 Unzip Secured Scripts
+      - name: Unzip Secured Scripts
         run: |
           sudo apt-get install -y unzip
-          # ZIP_PASSWORD সিক্রেটটি ব্যবহার করে sources.zip আনজিপ করা হচ্ছে
-          unzip -P "${{ secrets.ZIP_PASSWORD }}" sources.zip -d .
+          # Using -o to overwrite existing files and -P for password
+          unzip -o -P "${{ secrets.ZIP_PASSWORD }}" main.zip -d .
       
-      - name: 🐍 Set up Python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
       
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       
-      - name: 🌐 Run IPTV Scraper
+      - name: Run IPTV Scraper
         uses: nick-invision/retry@v2
         with:
           timeout_minutes: 5
@@ -43,13 +43,12 @@ jobs:
           retry_wait_seconds: 30
           command: python scraper.py --workers 8
       
-      - name: 📝 Check and Stage Changes
+      - name: Check and Stage Changes
         id: changes
         run: |
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
           
-          # আপনার আউটপুট ফাইলগুলো চেক এবং অ্যাড করা হচ্ছে
           if [ -f channels.json ] && [ -f Fuck-you-Ankita.m3u ]; then
             git add channels.json Fuck-you-Ankita.m3u channel_mapping.json
             
@@ -62,24 +61,24 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: 💾 Commit and Push
+      - name: Commit and Push
         if: steps.changes.outputs.changed == 'true'
         run: |
-          git commit -m "🤖 Auto: Updated channel data - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          git commit -m "Auto: Updated channel data - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
           git push
       
-      - name: 🧹 Cleanup Sensitive Files
+      - name: Cleanup Sensitive Files
         if: always()
         run: |
-          # রান সফল বা ব্যর্থ যাই হোক, আনজিপ হওয়া গোপন ফাইলগুলো ডিলিট হবে
-          rm -f scraper.py config.ini requirements.txt
+          # Deleting unzipped scripts to maintain security
+          rm -f scraper.py config.ini requirements.txt quickstart.py test_performance.py optimized_examples.py
       
-      - name: 📅 Generate Release Info
+      - name: Generate Release Info
         if: steps.changes.outputs.changed == 'true'
         id: rel_data
         run: echo "date=$(date -u +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
       
-      - name: 🏷️ Create Release
+      - name: Create Release
         if: steps.changes.outputs.changed == 'true'
         uses: softprops/action-gh-release@v1
         with:
