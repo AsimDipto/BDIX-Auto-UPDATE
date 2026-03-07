@@ -1,0 +1,97 @@
+Name: IPTV Scraper - Automatic Channel Update
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    name: Scrape IPTV Channels
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: 🔓 Unzip Secured Scripts
+        run: |
+          sudo apt-get install unzip
+          # এখানে 'your_files.zip' এর জায়গায় আপনার জিপ ফাইলের নাম দিন
+          # ZIP_PASSWORD টি আপনার GitHub Secrets-এ সেট করে নিন
+          unzip -P "${{ secrets.ZIP_PASSWORD }}" your_files.zip 
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: 📦 Install dependencies
+        run: |
+          echo "::group::Installing Python packages"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          echo "::endgroup::"
+      
+      - name: 🌐 Run IPTV Scraper (with 3 retries)
+        uses: nick-invision/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            python scraper.py --workers 8
+      
+      - name: 📝 Check for changes
+        id: changes
+        run: |
+          if [ -f channels.json ] && [ -s channels.json ] && [ -f Fuck-you-Ankita.m3u ] && [ -s Fuck-you-Ankita.m3u ]; then
+            git add channels.json Fuck-you-Ankita.m3u channel_mapping.json
+            
+            if git diff --cached --quiet; then
+              echo "changed=false" >> $GITHUB_OUTPUT
+            else
+              echo "changed=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 💾 Commit and push changes
+        if: steps.changes.outputs.changed == 'true'
+        uses: nick-invision/retry@v2
+        with:
+          timeout_minutes: 2
+          max_attempts: 2
+          retry_wait_seconds: 10
+          command: |
+            git config --global user.name "GitHub Actions Bot"
+            git config --global user.email "actions@github.com"
+            git add channels.json Fuck-you-Ankita.m3u channel_mapping.json
+            git commit -m "🤖 Auto: Updated channel data - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            git push
+
+      - name: 🧹 Cleanup Unzipped Files
+        if: always()
+        run: |
+          # রান শেষ হওয়ার পর আনজিপ হওয়া স্ক্রিপ্টগুলো ডিলিট করে দেয়া (নিরাপত্তার জন্য)
+          rm -f scraper.py config.ini requirements.txt
+      
+      - name: 📅 Generate timestamp for release
+        id: timestamp
+        run: echo "date=$(date -u +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+      
+      - name: 🏷️ Create Release
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: release-${{ github.run_number }}-${{ steps.timestamp.outputs.date }}
+          release_name: Channel Data Update #${{ github.run_number }}
+          body: "Automated update completed."
