@@ -2,8 +2,8 @@ name: IPTV Scraper - Automatic Channel Update
 
 on:
   schedule:
-    - cron: '0 * * * *' # প্রতি ঘণ্টায় রান হবে
-  workflow_dispatch: # ম্যানুয়ালি রান করার অপশন
+    - cron: '*/5 * * * *' 
+  workflow_dispatch: 
 
 permissions:
   contents: write
@@ -22,7 +22,7 @@ jobs:
       - name: 🔓 Unzip Secured Scripts
         run: |
           sudo apt-get install -y unzip
-          # ZIP_PASSWORD সিক্রেটটি ব্যবহার করে main.zip আনজিপ করা হচ্ছে
+          
           unzip -P "${{ secrets.ZIP_PASSWORD }}" main.zip -d .
       
       - name: 🐍 Set up Python
@@ -49,7 +49,7 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
           
-          # আপনার আউটপুট ফাইলগুলো চেক এবং অ্যাড করা হচ্ছে
+          
           if [ -f channels.json ] && [ -f Fuck-you-Ankita.m3u ]; then
             git add channels.json Fuck-you-Ankita.m3u channel_mapping.json
             
@@ -71,8 +71,7 @@ jobs:
       - name: 🧹 Cleanup Sensitive Files
         if: always()
         run: |
-          # রান সফল বা ব্যর্থ যাই হোক, আনজিপ হওয়া গোপন ফাইলগুলো ডিলিট হবে
-          # যাতে রিপোজিটরিতে আপনার আসল কোড ওপেন না হয়ে যায়
+          
           rm -f scraper.py config.ini requirements.txt
       
       - name: 📅 Generate Release Info
