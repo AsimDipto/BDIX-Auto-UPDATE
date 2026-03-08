@@ -1,63 +1,54 @@
-name: IPTV Scraper - Password Protected ZIP
+name: IPTV-Automated-System
 
 on:
   schedule:
-    - cron: '0 */1 * * *' # প্রতি ১ ঘণ্টা পর পর চলবে
+    - cron: '0 */1 * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  execution-job:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Sync-Repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Initialize-Environment
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      - name: First Unzip with Password
+      - name: Extraction-Stage-1
         run: |
-          # ZIP_PASSWORD সিক্রেট ব্যবহার করে আনজিপ করা হচ্ছে
           if [ -f main.zip ]; then
             unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
-          else
-            echo "❌ main.zip not found!"
-            exit 1
           fi
 
-      - name: Second Unzip (Nested ZIP)
+      - name: Extraction-Stage-2
         run: |
-          # যদি ভেতরের জিপেও একই পাসওয়ার্ড থাকে
           if [ -f main.zip ]; then
             unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
-          else
-            echo "❌ Nested main.zip not found!"
           fi
 
-      - name: Install Dependencies
+      - name: System-Requirements
         run: |
           pip install requests beautifulsoup4
 
-      - name: Run Scraper
+      - name: Core-Process
         run: |
-          # আপনার দেওয়া নতুন নাম অনুযায়ী রান হবে
           python scraper.py --m3u Fuck-you-Ankita.m3u --workers 8
 
-      - name: Save Playlist
+      - name: Finalize-Data
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions Bot"
           
           if [ -f Fuck-you-Ankita.m3u ]; then
             git add Fuck-you-Ankita.m3u
-            git commit -m "🤖 Auto Update: Fuck-you-Ankita.m3u updated"
+            git commit -m "System update: $(date)"
             git push
           else
-            echo "❌ Error: Playlist file not found!"
             exit 1
           fi
