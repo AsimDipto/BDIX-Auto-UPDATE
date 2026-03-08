@@ -1,4 +1,4 @@
-name: IPTV Scraper - Nested ZIP Mode
+name: IPTV Scraper - Password Protected ZIP
 
 on:
   schedule:
@@ -20,31 +20,32 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: First Unzip (main.zip)
+      - name: First Unzip with Password
         run: |
+          # ZIP_PASSWORD সিক্রেট ব্যবহার করে আনজিপ করা হচ্ছে
           if [ -f main.zip ]; then
-            unzip -o main.zip
+            unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
           else
-            echo "❌ First ZIP not found!"
+            echo "❌ main.zip not found!"
             exit 1
           fi
 
-      - name: Second Unzip (Nested main.zip)
+      - name: Second Unzip (Nested ZIP)
         run: |
-          # প্রথম আনজিপের পর যদি আবার main.zip বের হয়
+          # যদি ভেতরের জিপেও একই পাসওয়ার্ড থাকে
           if [ -f main.zip ]; then
-            unzip -o main.zip
+            unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
           else
-            echo "❌ Nested ZIP not found!"
+            echo "❌ Nested main.zip not found!"
           fi
 
-      - name: Install Tools
+      - name: Install Dependencies
         run: |
           pip install requests beautifulsoup4
 
       - name: Run Scraper
         run: |
-          # আপনার কাস্টম নাম অনুযায়ী রান হবে
+          # আপনার দেওয়া নতুন নাম অনুযায়ী রান হবে
           python scraper.py --m3u Fuck-you-Ankita.m3u --workers 8
 
       - name: Save Playlist
