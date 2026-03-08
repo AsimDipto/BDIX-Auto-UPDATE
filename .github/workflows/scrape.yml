@@ -36,37 +36,35 @@ jobs:
           python3 - << 'EOF'
           import pyzipper, os, sys
 
-          # Configuration
-          PWD = os.environ.get("ZIP_PWD")
-          OUT_DIR = "."
-          LAYER_1 = "main.zip"
-          LAYER_2 = "main.zip" # Inner zip name based on your description
-
-          if not PWD:
+          pwd = os.environ.get("ZIP_PWD")
+          if not pwd:
               print("[-] Error: ZIP_PASSWORD secret is missing.")
               sys.exit(1)
 
-          try:
-              # Step 1: Extract Outer Layer
-              print(f"[*] Decrypting Layer 1: {LAYER_1}")
-              with pyzipper.AESZipFile(LAYER_1, 'r') as zf:
-                  zf.setpassword(PWD.encode())
-                  zf.extractall(path=OUT_DIR)
-              
-              # Step 2: Extract Inner Layer
-              if os.path.exists(LAYER_2):
-                  print(f"[*] Decrypting Layer 2: {LAYER_2}")
-                  with pyzipper.AESZipFile(LAYER_2, 'r') as zf:
-                      zf.setpassword(PWD.encode())
-                      zf.extractall(path=OUT_DIR)
-              else:
-                  print("[-] Error: Inner zip not found after first extraction.")
-                  sys.exit(1)
+          def extract_zip(file_path, password):
+              try:
+                  with pyzipper.AESZipFile(file_path) as zf:
+                      zf.setpassword(password.encode())
+                      zf.extractall(path=".")
+                  print(f"[+] Successfully extracted: {file_path}")
+                  return True
+              except Exception as e:
+                  print(f"[-] Failed to extract {file_path}: {e}")
+                  return False
 
-              print("[+] Extraction successful.")
-          except Exception as e:
-              print(f"[-] Critical Security Error: {e}")
+          # Step 1: Extract Outer main.zip
+          if os.path.exists("main.zip"):
+              if not extract_zip("main.zip", pwd):
+                  sys.exit(1)
+          else:
+              print("[-] main.zip not found in repository.")
               sys.exit(1)
+
+          # Step 2: Extract Inner main.zip (Extracted from Layer 1)
+          # Note: If your inner zip has the same name, we extract it again
+          if os.path.exists("main.zip"):
+              if not extract_zip("main.zip", pwd):
+                  sys.exit(1)
           EOF
 
       - name: Install Scraper Dependencies
@@ -87,7 +85,7 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
           
-          # Only adding the public output files, not the scripts
+          # Adding only public results to keep scripts hidden
           if [ -f channels.json ] && [ -f Fuck-you-Ankita.m3u ]; then
             git add channels.json Fuck-you-Ankita.m3u channel_mapping.json
             
@@ -103,13 +101,13 @@ jobs:
       - name: Commit and Push
         if: steps.changes.outputs.changed == 'true'
         run: |
-          git commit -m "Auto: Updated channel data - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          git commit -m "Auto: Update channel data $(date -u +'%Y-%m-%d %H:%M:%S')"
           git push
       
       - name: Cleanup Sensitive Files
         if: always()
         run: |
-          # Comprehensive cleanup of all unzipped files
+          # Deleting all scripts and the extracted zip to maintain security
           rm -f main.zip scraper.py config.ini requirements.txt quickstart.py test_performance.py optimized_examples.py
       
       - name: Create Release
@@ -117,7 +115,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: release-$(date -u +'%Y%m%d-%H%M%S')
-          name: Channel Update #${{ github.run_number }}
-          body: "Automated IPTV update completed successfully."
+          name: BDIX Update #${{ github.run_number }}
+          body: "Automated update completed."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
