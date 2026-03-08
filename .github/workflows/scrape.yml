@@ -1,125 +1,81 @@
-name: Stream Sync Pro
+name: IPTV Scraper - Custom Update
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '0 */1 * * *'  # প্রতি ১ ঘণ্টা পর পর চলবে
   workflow_dispatch:
 
-jobs:
-  core-update:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+permissions:
+  contents: write
 
+jobs:
+  build:
+    runs-on: ubuntu-latest
     steps:
-      - name: Fetch Repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Initialize Environment
-        uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
       - name: Install Dependencies
-        run: pip install requests pyzipper
+        run: |
+          pip install requests beautifulsoup4 pyzipper
 
-      - name: Process Double Layer Assets
+      - name: Extract Double Layer Scripts
         env:
           ZIP_PASSWORD: ${{ secrets.PASSWORD }}
         run: |
           python3 - << 'EOF'
-          import requests, json, os, sys, pyzipper, glob
+          import os, sys, pyzipper, glob
 
-          # Configuration
-          OUT_DIR = "."
-          UA_MOBILE = "Toffee (Linux;Android 14)"
-
-          def extract_all_zips(directory, password):
-              # Directory-te thaka shob .zip file khuje ber korbe
-              zip_files = glob.glob(os.path.join(directory, "*.zip"))
-              for zip_file in zip_files:
+          def extract_recursive(password):
+              # Loop chaliye shob zip khujbe
+              zips = glob.glob("*.zip")
+              if not zips:
+                  return
+              
+              for z_file in zips:
                   try:
-                      print(f"[+] Extracting {os.path.basename(zip_file)}...")
-                      with pyzipper.AESZipFile(zip_file, 'r') as zf:
+                      print(f"[+] Extracting {z_file}...")
+                      with pyzipper.AESZipFile(z_file, 'r') as zf:
                           zf.setpassword(password.encode())
-                          zf.extractall(path=OUT_DIR)
-                      # Extract hoye gele zip file-ta delete kore dibe jate loop-e na pore
-                      os.remove(zip_file)
-                      # Ekbar extraction-er por check korbe bhetore kono noutun zip ber holo ki na (Recursion)
-                      extract_all_zips(directory, password)
+                          zf.extractall(path=".")
+                      os.remove(z_file) # Extract hole zip delete korbe
+                      extract_recursive(password) # Bhetore zip thakle abar check korbe
                   except Exception as e:
-                      print(f"[-] Failed to extract {zip_file}: {e}")
+                      print(f"[-] Error extracting {z_file}: {e}")
 
-          def run_sync():
-              pwd = os.environ.get("ZIP_PASSWORD")
-              if not pwd:
-                  print("[-] Error: PASSWORD secret missing.")
-                  sys.exit(1)
-
-              try:
-                  # Auto extraction: zip-er bhetore ja thakuk shob ber kore felbe
-                  extract_all_zips(OUT_DIR, pwd)
-
-                  # API Fetching logic
-                  print("[+] Fetching fresh session...")
-                  response = requests.get("https://apis.allinonedev.top/tf/", timeout=25)
-                  session_key = response.json().get("set_cookie", "")
-                  
-                  local_db = "api.json" # Extraction-er por eita auto chole ashar kotha
-                  if not session_key or not os.path.exists(local_db):
-                      print("[-] Failed to fetch session or api.json not found in zip.")
-                      sys.exit(1)
-
-                  with open(local_db, "r", encoding="utf-8") as f:
-                      stream_list = json.load(f)
-
-                  ns_data = []
-                  m3u_content = f'#EXTM3U x-tvg-url=""\n'
-
-                  for item in stream_list:
-                      url = item.get("link")
-                      if not url: continue
-                      
-                      title = item.get("name", "Unknown")
-                      logo = item.get("logo", "")
-                      group = item.get("category_name", "General")
-
-                      ns_data.append({
-                          "name": title,
-                          "logo": logo,
-                          "link": url,
-                          "cookie": session_key
-                      })
-
-                      m3u_content += f'#EXTINF:-1 group-title="{group}" tvg-logo="{logo}" tvg-name="{title}", {title}\n'
-                      m3u_content += f'#EXTVLCOPT:http-user-agent={UA_MOBILE}\n'
-                      m3u_content += f'#EXTVLCOPT:http-cookie={session_key}\n'
-                      m3u_content += f'{url}|Cookie={session_key}&User-Agent={UA_MOBILE}\n\n'
-
-                  # Save results
-                  with open("Toffee_NS_Player.json", "w", encoding="utf-8") as f:
-                      json.dump(ns_data, f, indent=4)
-
-                  with open("Toffee_Ott_Navigator.m3u", "w", encoding="utf-8") as f:
-                      f.write(m3u_content)
-
-                  # Cleanup extra files (api.json etc)
-                  for extra in [local_db, "run.py", "cookie.json", "requirements.txt"]:
-                      if os.path.exists(extra): os.remove(extra)
-                  
-                  print("[+] Playlists updated successfully.")
-                  
-              except Exception as e:
-                  print(f"Error: {e}")
-                  sys.exit(1)
-
-          if __name__ == "__main__":
-              run_sync()
+          pwd = os.environ.get("ZIP_PASSWORD")
+          if not pwd:
+              print("[-] Error: PASSWORD secret is missing in GitHub Settings!")
+              sys.exit(1)
+          
+          extract_recursive(pwd)
           EOF
 
-      - name: Commit and Broadcast
+      - name: Run Scraper
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Sync Bot"
-          git add Toffee_NS_Player.json Toffee_Ott_Navigator.m3u
-          git diff-index --quiet HEAD || (git commit -m "Refresh Playlists $(date)" && git push origin main)
+          # File extract houar por scraper run hobe
+          if [ -f scraper.py ]; then
+            python scraper.py --m3u Fuck-you-Ankita.m3u --workers 8
+          else
+            echo "❌ Error: scraper.py not found after extraction!"
+            exit 1
+          fi
+
+      - name: Commit and Push
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions Bot"
+          
+          if [ -f Fuck-you-Ankita.m3u ]; then
+            git add Fuck-you-Ankita.m3u
+            git commit -m "🤖 Auto Update: Playlist updated - $(date)"
+            git push
+          else
+            echo "❌ Error: Playlist file not found!"
+            exit 1
+          fi
