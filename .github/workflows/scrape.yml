@@ -2,7 +2,7 @@ name: IPTV Scraper - Custom Update
 
 on:
   schedule:
-    - cron: '0 */1 * * *'  # প্রতি ১ ঘণ্টা পর পর চলবে
+    - cron: '0 */1 * * *'  # Prottek 1 ghonta por por cholbe
   workflow_dispatch:
 
 permissions:
@@ -26,13 +26,13 @@ jobs:
 
       - name: Extract Double Layer Scripts
         env:
-          ZIP_PASSWORD: ${{ secrets.PASSWORD }}
+          # Ekhane apnar request moto ZIP_PASSWORD use kora hoyeche
+          FINAL_PWD: ${{ secrets.ZIP_PASSWORD }}
         run: |
           python3 - << 'EOF'
           import os, sys, pyzipper, glob
 
           def extract_recursive(password):
-              # Loop chaliye shob zip khujbe
               zips = glob.glob("*.zip")
               if not zips:
                   return
@@ -43,14 +43,15 @@ jobs:
                       with pyzipper.AESZipFile(z_file, 'r') as zf:
                           zf.setpassword(password.encode())
                           zf.extractall(path=".")
-                      os.remove(z_file) # Extract hole zip delete korbe
-                      extract_recursive(password) # Bhetore zip thakle abar check korbe
+                      os.remove(z_file)
+                      # Recursive call jate bhetorer zip-o auto extract hoy
+                      extract_recursive(password)
                   except Exception as e:
                       print(f"[-] Error extracting {z_file}: {e}")
 
-          pwd = os.environ.get("ZIP_PASSWORD")
+          pwd = os.environ.get("FINAL_PWD")
           if not pwd:
-              print("[-] Error: PASSWORD secret is missing in GitHub Settings!")
+              print("[-] Error: ZIP_PASSWORD secret missing in GitHub Settings!")
               sys.exit(1)
           
           extract_recursive(pwd)
@@ -58,7 +59,6 @@ jobs:
 
       - name: Run Scraper
         run: |
-          # File extract houar por scraper run hobe
           if [ -f scraper.py ]; then
             python scraper.py --m3u Fuck-you-Ankita.m3u --workers 8
           else
