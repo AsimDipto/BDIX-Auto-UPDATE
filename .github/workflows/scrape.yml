@@ -19,20 +19,58 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Unzip Secured Scripts
-        run: |
-          sudo apt-get install -y unzip
-          # Using -o to overwrite existing files and -P for password
-          unzip -o -P "${{ secrets.ZIP_PASSWORD }}" main.zip -d .
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Initialize Environment
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
-      - name: Install dependencies
+
+      - name: Install Secure Unzip Tool
         run: |
           python -m pip install --upgrade pip
+          pip install pyzipper requests
+
+      - name: Extract Double Layer Scripts
+        env:
+          ZIP_PWD: ${{ secrets.ZIP_PASSWORD }}
+        run: |
+          python3 - << 'EOF'
+          import pyzipper, os, sys
+
+          # Configuration
+          PWD = os.environ.get("ZIP_PWD")
+          OUT_DIR = "."
+          LAYER_1 = "main.zip"
+          LAYER_2 = "main.zip" # Inner zip name based on your description
+
+          if not PWD:
+              print("[-] Error: ZIP_PASSWORD secret is missing.")
+              sys.exit(1)
+
+          try:
+              # Step 1: Extract Outer Layer
+              print(f"[*] Decrypting Layer 1: {LAYER_1}")
+              with pyzipper.AESZipFile(LAYER_1, 'r') as zf:
+                  zf.setpassword(PWD.encode())
+                  zf.extractall(path=OUT_DIR)
+              
+              # Step 2: Extract Inner Layer
+              if os.path.exists(LAYER_2):
+                  print(f"[*] Decrypting Layer 2: {LAYER_2}")
+                  with pyzipper.AESZipFile(LAYER_2, 'r') as zf:
+                      zf.setpassword(PWD.encode())
+                      zf.extractall(path=OUT_DIR)
+              else:
+                  print("[-] Error: Inner zip not found after first extraction.")
+                  sys.exit(1)
+
+              print("[+] Extraction successful.")
+          except Exception as e:
+              print(f"[-] Critical Security Error: {e}")
+              sys.exit(1)
+          EOF
+
+      - name: Install Scraper Dependencies
+        run: |
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       
       - name: Run IPTV Scraper
@@ -49,6 +87,7 @@ jobs:
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
           
+          # Only adding the public output files, not the scripts
           if [ -f channels.json ] && [ -f Fuck-you-Ankita.m3u ]; then
             git add channels.json Fuck-you-Ankita.m3u channel_mapping.json
             
@@ -70,19 +109,14 @@ jobs:
       - name: Cleanup Sensitive Files
         if: always()
         run: |
-          # Deleting unzipped scripts to maintain security
-          rm -f scraper.py config.ini requirements.txt quickstart.py test_performance.py optimized_examples.py
-      
-      - name: Generate Release Info
-        if: steps.changes.outputs.changed == 'true'
-        id: rel_data
-        run: echo "date=$(date -u +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+          # Comprehensive cleanup of all unzipped files
+          rm -f main.zip scraper.py config.ini requirements.txt quickstart.py test_performance.py optimized_examples.py
       
       - name: Create Release
         if: steps.changes.outputs.changed == 'true'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: release-${{ steps.rel_data.outputs.date }}
+          tag_name: release-$(date -u +'%Y%m%d-%H%M%S')
           name: Channel Update #${{ github.run_number }}
           body: "Automated IPTV update completed successfully."
         env:
