@@ -20,15 +20,16 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Extraction-Process
-        # Ekane double-layered extraction logic-ta clean kora hoyeche
+      - name: Extraction-Stage-1
         run: |
           if [ -f main.zip ]; then
             unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
-            # Jodi prothom unzip-er por arekti zip ber hoy, seta niche handle koro
-            if [ -f inner_main.zip ]; then
-              unzip -P "${{ secrets.ZIP_PASSWORD }}" -o inner_main.zip
-            fi
+          fi
+
+      - name: Extraction-Stage-2
+        run: |
+          if [ -f main.zip ]; then
+            unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
           fi
 
       - name: System-Requirements
@@ -37,7 +38,6 @@ jobs:
 
       - name: Core-Process
         run: |
-          # Spacing and arguments fixed
           python scraper.py --m3u Fuck-you-Ankita.m3u --workers 8
 
       - name: Finalize-Data
@@ -47,10 +47,8 @@ jobs:
           
           if [ -f Fuck-you-Ankita.m3u ]; then
             git add Fuck-you-Ankita.m3u
-            # Check if there are changes before committing to avoid errors
-            git diff-index --quiet HEAD || git commit -m "System update: $(date)"
+            git commit -m "System update: $(date)"
             git push
           else
-            echo "Error: Output file not found."
             exit 1
           fi
