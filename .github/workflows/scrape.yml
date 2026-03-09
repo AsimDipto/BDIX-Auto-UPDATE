@@ -1,4 +1,4 @@
-name: BDIX Auto Update
+Name: BDIX Auto Update
 
 on:
   schedule:
@@ -45,10 +45,10 @@ jobs:
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions Bot"
           
-          if [ -f Fuck-you-Ankita.m3u ]; then
-            git add Fuck-you-Ankita.m3u
-            git commit -m "System update: $(date)"
-            git push
-          else
-            exit 1
+          git add Fuck-you-Ankita.m3u
+          if [ -f Fuck-you-Ankita.json ]; then
+            git add Fuck-you-Ankita.json
           fi
+          
+          git commit -m "System update: $(date)"
+          git push
