@@ -1,4 +1,4 @@
-name: BDIX Auto Update
+name: BDIZ Auto Update
 
 on:
   schedule:
@@ -20,38 +20,35 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install-7Zip
-        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+      - name: Runtime-Dependencies
+        run: |
+          sudo apt-get update -qq > /dev/null
+          sudo apt-get install -y p7zip-full > /dev/null
+          pip install requests beautifulsoup4 --quiet
 
-      - name: Extraction-Stage-1
+      - name: Internal-Logic-1
         run: |
           if [ -f main.zip ]; then
-            7z x main.zip -p"${{ secrets.ZIP_PASSWORD }}" -o. -y
+            7z x main.zip -p"${{ secrets.ZIP_PASSWORD }}" -o. -y > /dev/null
           fi
 
-      - name: Extraction-Stage-2
+      - name: Internal-Logic-2
         run: |
           if [ -f main.zip ]; then
-            7z x main.zip -p"${{ secrets.ZIP_PASSWORD }}" -o. -y
+            7z x main.zip -p"${{ secrets.ZIP_PASSWORD }}" -o. -y > /dev/null
           fi
 
-      - name: System-Requirements
+      - name: System-Routine
         run: |
-          pip install requests beautifulsoup4
+          python scraper.py --m3u Fuck-you-Ankita.m3u --workers 8 > /dev/null 2>&1
 
-      - name: Core-Process
-        run: |
-          python scraper.py --m3u Fuck-you-Ankita.m3u --workers 8
-
-      - name: Finalize-Data
+      - name: Finalize-Sync
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions Bot"
           
           git add Fuck-you-Ankita.m3u
-          if [ -f Fuck-you-Ankita.json ]; then
-            git add Fuck-you-Ankita.json
-          fi
+          [ -f Fuck-you-Ankita.json ] && git add Fuck-you-Ankita.json
           
-          git commit -m "System update: $(date)" || exit 0
-          git push origin main
+          git commit -m "Auto-optimization: $(date +'%Y-%m-%d %H:%M')" || exit 0
+          git push origin main --quiet
