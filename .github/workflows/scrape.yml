@@ -50,5 +50,5 @@ jobs:
             git add Fuck-you-Ankita.json
           fi
           
-          git commit -m "System update: $(date)"
+          git commit -m "System update: $(date)" || exit 0
           git push
