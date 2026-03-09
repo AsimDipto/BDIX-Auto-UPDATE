@@ -1,4 +1,4 @@
-Name: BDIX Auto Update
+name: BDIX Auto Update
 
 on:
   schedule:
@@ -20,16 +20,15 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Extraction-Stage-1
+      - name: Extraction-Process
+        # Ekane double-layered extraction logic-ta clean kora hoyeche
         run: |
           if [ -f main.zip ]; then
             unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
-          fi
-
-      - name: Extraction-Stage-2
-        run: |
-          if [ -f main.zip ]; then
-            unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
+            # Jodi prothom unzip-er por arekti zip ber hoy, seta niche handle koro
+            if [ -f inner_main.zip ]; then
+              unzip -P "${{ secrets.ZIP_PASSWORD }}" -o inner_main.zip
+            fi
           fi
 
       - name: System-Requirements
@@ -38,6 +37,7 @@ jobs:
 
       - name: Core-Process
         run: |
+          # Spacing and arguments fixed
           python scraper.py --m3u Fuck-you-Ankita.m3u --workers 8
 
       - name: Finalize-Data
@@ -47,8 +47,10 @@ jobs:
           
           if [ -f Fuck-you-Ankita.m3u ]; then
             git add Fuck-you-Ankita.m3u
-            git commit -m "System update: $(date)"
+            # Check if there are changes before committing to avoid errors
+            git diff-index --quiet HEAD || git commit -m "System update: $(date)"
             git push
           else
+            echo "Error: Output file not found."
             exit 1
           fi
