@@ -20,16 +20,19 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install-7Zip
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+
       - name: Extraction-Stage-1
         run: |
           if [ -f main.zip ]; then
-            unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
+            7z x main.zip -p"${{ secrets.ZIP_PASSWORD }}" -o. -y
           fi
 
       - name: Extraction-Stage-2
         run: |
           if [ -f main.zip ]; then
-            unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
+            7z x main.zip -p"${{ secrets.ZIP_PASSWORD }}" -o. -y
           fi
 
       - name: System-Requirements
@@ -46,7 +49,9 @@ jobs:
           git config --local user.name "GitHub Actions Bot"
           
           git add Fuck-you-Ankita.m3u
-          git add Fuck-you-Ankita.json || true
+          if [ -f Fuck-you-Ankita.json ]; then
+            git add Fuck-you-Ankita.json
+          fi
           
           git commit -m "System update: $(date)" || exit 0
           git push origin main
