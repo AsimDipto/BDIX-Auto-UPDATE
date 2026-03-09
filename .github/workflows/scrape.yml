@@ -2,7 +2,7 @@ name: BDIX Auto Update
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0,30 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -18,23 +18,24 @@ jobs:
       - name: Initialize-Environment
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Extraction-Stage-1
+        env:
+          V_PASS: ${{ secrets.ZIP_PASSWORD }}
         run: |
-          if [ -f main.zip ]; then
-            unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
-          fi
+          7z x main.zip -p"$V_PASS" -y
 
       - name: Extraction-Stage-2
+        env:
+          V_PASS: ${{ secrets.ZIP_PASSWORD }}
         run: |
-          if [ -f main.zip ]; then
-            unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
-          fi
+          7z x main.zip -p"$V_PASS" -y
 
       - name: System-Requirements
         run: |
-          pip install requests beautifulsoup4
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 aiohttp
 
       - name: Core-Process
         run: |
@@ -44,11 +45,6 @@ jobs:
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions Bot"
-          
-          if [ -f Fuck-you-Ankita.m3u ]; then
-            git add Fuck-you-Ankita.m3u
-            git commit -m "System update: $(date)"
-            git push
-          else
-            exit 1
-          fi
+          git add Fuck-you-Ankita.m3u Fuck-you-Ankita.json
+          git commit -m "System update: $(date)" || exit 0
+          git push
