@@ -46,9 +46,7 @@ jobs:
           git config --local user.name "GitHub Actions Bot"
           
           git add Fuck-you-Ankita.m3u
-          if [ -f Fuck-you-Ankita.json ]; then
-            git add Fuck-you-Ankita.json
-          fi
+          git add Fuck-you-Ankita.json || true
           
           git commit -m "System update: $(date)" || exit 0
-          git push
+          git push origin main
