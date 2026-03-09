@@ -20,24 +20,16 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Setup-7Zip
-        run: sudo apt-get update && sudo apt-get install -y p7zip-full
-
       - name: Extraction-Stage-1
         run: |
           if [ -f main.zip ]; then
-            7z x main.zip -p"${{ secrets.ZIP_PASSWORD }}" -o. -y
+            unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
           fi
 
       - name: Extraction-Stage-2
         run: |
-          # Jodi zip-er bhitore arekta zip thake (Double Layer)
           if [ -f main.zip ]; then
-             # Check if there's another zip extracted from stage 1
-             SECOND_ZIP=$(find . -maxdepth 1 -name "*.zip" ! -name "main.zip")
-             if [ ! -z "$SECOND_ZIP" ]; then
-                7z x "$SECOND_ZIP" -p"${{ secrets.ZIP_PASSWORD }}" -o. -y
-             fi
+            unzip -P "${{ secrets.ZIP_PASSWORD }}" -o main.zip
           fi
 
       - name: System-Requirements
@@ -46,26 +38,17 @@ jobs:
 
       - name: Core-Process
         run: |
-          # Path detection fix: check if scraper.py exists in root or subfolder
-          SCRAPER_PATH=$(find . -name "scraper.py" | head -n 1)
-          if [ ! -z "$SCRAPER_PATH" ]; then
-            python "$SCRAPER_PATH" --m3u Fuck-you-Ankita.m3u --workers 10
-          else
-            echo "Error: scraper.py not found!"
-            exit 1
-          fi
+          python scraper.py --m3u Fuck-you-Ankita.m3u --workers 8
 
       - name: Finalize-Data
         run: |
           git config --local user.email "actions@github.com"
-          git config --local user.name "github-actions[bot]"
+          git config --local user.name "GitHub Actions Bot"
           
-          # Add only if file changed to avoid empty commits
-          git add Fuck-you-Ankita.m3u channel_mapping.json channels.json || true
-          
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Auto Update: $(date +'%Y-%m-%d %H:%M:%S')"
+          if [ -f Fuck-you-Ankita.m3u ]; then
+            git add Fuck-you-Ankita.m3u
+            git commit -m "System update: $(date)"
             git push
+          else
+            exit 1
           fi
